@@ -1,16 +1,15 @@
 # Étape 1 : Build de l'application
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copier le fichier projet et restaurer les dépendances
-COPY ["Server/SmartNest.Server.csproj", "Server/"]
-RUN dotnet restore "Server/SmartNest.Server.csproj"
+# Copier TOUT le contenu d'abord pour résoudre les dépendances
+COPY . .
 
-# Copier tout le code du serveur
-COPY Server/ Server/
+# Se placer dans le dossier Server et restaurer
+WORKDIR /src/Server
+RUN dotnet restore "SmartNest.Server.csproj"
 
 # Builder l'application
-WORKDIR "/src/Server"
 RUN dotnet build "SmartNest.Server.csproj" -c Release -o /app/build
 
 # Étape 2 : Publication
@@ -18,7 +17,7 @@ FROM build AS publish
 RUN dotnet publish "SmartNest.Server.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Étape 3 : Image finale runtime
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
 # Créer le dossier pour la base de données SQLite
