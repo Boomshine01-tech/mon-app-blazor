@@ -93,16 +93,23 @@ if (string.IsNullOrEmpty(connectionString))
 // =========================================
 
 
-// ApplicationDbContext
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
+// Configuration de la base de données
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+if (!string.IsNullOrEmpty(databaseUrl))
 {
-    options.UseNpgsql(connectionString);
-    if (builder.Environment.IsDevelopment())
-    {
-        options.EnableSensitiveDataLogging();
-        options.EnableDetailedErrors();
-    }
-});
+    // Production : Render
+    var connectiondbString = ConvertDatabaseUrl(databaseUrl);
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectiondbString));
+}
+else
+{
+    // Développement : local
+    var connectiondbString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseNpgsql(connectiondbString));
+}
 // =========================================
 // 🧠 Services métier
 // =========================================
@@ -435,3 +442,22 @@ Console.WriteLine($"🌍 Environment: {app.Environment.EnvironmentName}");
 Console.WriteLine($"🔗 Listening on: {string.Join(", ", app.Urls)}");
 
 app.Run();
+
+
+// Fonction utilitaire pour convertir l'URL PostgreSQL
+static string ConvertDatabaseUrl(string databaseUrl)
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    
+    var connectionString = $"Host={uri.Host};" +
+                          $"Port={uri.Port};" +
+                          $"Database={uri.AbsolutePath.Trim('/')};" +
+                          $"Username={userInfo[0]};" +
+                          $"Password={userInfo[1]};" +
+                          $"SSL Mode=Require;" +
+                          $"Trust Server Certificate=true";
+    
+    Console.WriteLine($"📝 Connection string configured for host: {uri.Host}");
+    return connectionString;
+}
