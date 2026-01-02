@@ -13,6 +13,7 @@ using SmartNest.Server.Models.postgres;
 using Microsoft.AspNetCore.Identity;
 using SmartNest.Server.Models;
 using Microsoft.AspNetCore.Components.Authorization;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -95,11 +96,15 @@ if (string.IsNullOrEmpty(connectionString))
 
 // Configuration de la base de données
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+Console.WriteLine($"🔍 DATABASE_URL présente: {!string.IsNullOrEmpty(databaseUrl)}");
 
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    // Production : Render
+    // Production : Render    
     var connectiondbString = ConvertDatabaseUrl(databaseUrl);
+     // Masquer le mot de passe pour la sécurité
+    var safePart = databaseUrl.Split('@').LastOrDefault();
+    Console.WriteLine($"🔍 DATABASE_URL format: postgres://***@{safePart}");
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseNpgsql(connectiondbString));
 }
@@ -447,17 +452,28 @@ app.Run();
 // Fonction utilitaire pour convertir l'URL PostgreSQL
 static string ConvertDatabaseUrl(string databaseUrl)
 {
-    var uri = new Uri(databaseUrl);
-    var userInfo = uri.UserInfo.Split(':');
-    
-    var connectionString = $"Host={uri.Host};" +
-                          $"Port={uri.Port};" +
-                          $"Database={uri.AbsolutePath.Trim('/')};" +
-                          $"Username={userInfo[0]};" +
-                          $"Password={userInfo[1]};" +
-                          $"SSL Mode=Require;" +
-                          $"Trust Server Certificate=true";
-    
-    Console.WriteLine($"📝 Connection string configured for host: {uri.Host}");
-    return connectionString;
+    try
+    {
+        var uri = new Uri(databaseUrl);
+        
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.Port > 0 ? uri.Port : 5432,
+            Username = uri.UserInfo.Split(':')[0],
+            Password = uri.UserInfo.Split(':')[1],
+            Database = uri.LocalPath.TrimStart('/'),
+            SslMode = SslMode.Require,
+            TrustServerCertificate = true
+        };
+        
+        Console.WriteLine($"✅ Connection: {builder.Host}:{builder.Port}/{builder.Database}");
+        return builder.ConnectionString;
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ DATABASE_URL parsing error: {ex.Message}");
+        Console.WriteLine($"URL received: {databaseUrl?.Substring(0, Math.Min(50, databaseUrl?.Length ?? 0))}...");
+        throw;
+    }
 }
