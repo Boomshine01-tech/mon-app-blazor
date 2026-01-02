@@ -295,7 +295,7 @@ try
     using (var scope1 = app.Services.CreateScope())
     {
         var db = scope1.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.EnsureCreated(); // Crée la DB si elle n'existe 
+        await db.Database.MigrateAsync();// Crée la DB si elle n'existe 
          Console.WriteLine("PostgreSQL  ready");
     }
     
