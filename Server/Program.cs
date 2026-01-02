@@ -95,8 +95,14 @@ if (string.IsNullOrEmpty(connectionString))
 
 // ApplicationDbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+{
+    options.UseNpgsql(connectionString);
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging();
+        options.EnableDetailedErrors();
+    }
+});
 // =========================================
 // 🧠 Services métier
 // =========================================
